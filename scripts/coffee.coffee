@@ -14,7 +14,7 @@
 
 StatusEmoji = require('./status-emoji')
 
-dibsLimit = process.env.HUBOT_COFFEE_DIBS_LIMIT || 1
+dibsLimit = process.env.HUBOT_COFFEE_DIBS_LIMIT || 6
 
 freshPots = [
   "http://stream1.gifsoup.com/view6/3131142/chug-coffee-o.gif",
