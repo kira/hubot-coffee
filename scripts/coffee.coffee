@@ -109,7 +109,7 @@ module.exports = (robot) ->
 
     teamNotify = brewing.dibs.length < dibsLimit
 
-    threadedMsg(msg).send "#{if teamNotify then '@team: ' else ''}Fresh Pot!!! #{msg.random freshPots}" +
+    threadedMsg(msg).send "#{if teamNotify then '@team: ' else ''}Fresh Pot!!! #{msg.random freshPots} " +
       "The dibbed spots are…\n" +
       (":coffee: ##{(parseInt index)+1}: @#{dibber}#{if dibber == brewing.barista then ' (barista)' else ''}" for index, dibber of brewing.dibs).join("\n")
 
