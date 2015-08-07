@@ -57,7 +57,7 @@ module.exports = (robot) ->
 
     createBrew msg
 
-  robot.respond /(fresh[ -]pot|fp)\s*$/i, (msg) ->
+  robot.respond /(fresh[ -]?pot|fp)\s*$/i, (msg) ->
     return handleNoBrew msg if not isBrewing()
 
     endBrew msg
@@ -109,9 +109,16 @@ module.exports = (robot) ->
 
     teamNotify = brewing.dibs.length < dibsLimit
 
+    claims = []
+    for i in [1..dibsLimit]
+      claims.push if (dibber = brewing.dibs[i-1])
+        "@#{dibber}#{if dibber == brewing.barista then ' (barista)' else ''}"
+      else
+        "Unclaimed!"
+
     threadedMsg(msg).send "#{if teamNotify then '@team: ' else ''}Fresh Pot!!! #{msg.random freshPots} " +
-      "The dibbed spots are…\n" +
-      (":coffee: ##{(parseInt index)+1}: @#{dibber}#{if dibber == brewing.barista then ' (barista)' else ''}" for index, dibber of brewing.dibs).join("\n")
+      ":coffee: Claims:\n" +
+      (" • ##{(parseInt index)+1}: #{claim}" for index, claim of claims).join("\n")
 
     brewing = {}
 
