@@ -1,6 +1,9 @@
 # Description:
 #   Kira Caffienation Support Tools
 #
+# Dependencies:
+#    "dateformat": "1.0.x"
+#
 # Commands:
 #   hubot coffee [cups] - What you need to make [cups] cups of coffee.
 #   hubot brewing - Start a new brewing lineup
@@ -12,9 +15,11 @@
 # water = 3/16 * cups
 # scoops = .75 * cups + 2
 
-StatusEmoji = require('./status-emoji')
+dateformat = require 'dateformat'
+StatusEmoji = require './status-emoji'
 
 dibsLimit = process.env.HUBOT_COFFEE_DIBS_LIMIT || 6
+dibsDuration = process.env.HUBOT_COFFEE_DIBS_DURATION || (60*10)
 
 freshPots = [
   "http://stream1.gifsoup.com/view6/3131142/chug-coffee-o.gif",
@@ -109,6 +114,8 @@ module.exports = (robot) ->
 
     teamNotify = brewing.dibs.length < dibsLimit
 
+    expiry = new Date (new Date()).getTime() + dibsDuration*1000
+
     claims = []
     for i in [1..dibsLimit]
       claims.push if (dibber = brewing.dibs[i-1])
@@ -116,9 +123,16 @@ module.exports = (robot) ->
       else
         "Unclaimed!"
 
-    threadedMsg(msg).send "#{if teamNotify then '@team: ' else ''}Fresh Pot!!! #{msg.random freshPots} " +
-      ":coffee: Claims:\n" +
+    threadMsg = threadedMsg(msg)
+    threadMsg.send "#{if teamNotify then '@team: ' else ''}Fresh Pot!!! #{msg.random freshPots} " +
+      ":coffee: Claims (valid until #{dateformat expiry, 'h:MM:ss tt'}):\n" +
       (" • ##{(parseInt index)+1}: #{claim}" for index, claim of claims).join("\n")
+
+
+    if claims.length
+      setTimeout ->
+        threadMsg.send "Claims have expired!"
+      , dibsDuration*1000
 
     brewing = {}
 
