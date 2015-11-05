@@ -10,11 +10,9 @@
 #   hubot fresh pot - Announce that a pot is finished
 #   hubot fp - Alias for: hubot fresh pot
 #   hubot dibs - Reserve your spot in line for a current brew
-#   hubot :coffee: balance [user] - Check your coffee balance (defaults to you)
-#   hubot :coffee: top [n] - See the top coffee balances (defaults to 10)
-#   hubot :coffee: bottom [n] - See the bottom coffee balances (defaults to 10)
-
-
+#   hubot coffee balance [user] - Check your coffee balance (defaults to you)
+#   hubot coffee top [n] - See the top coffee balances (defaults to 10)
+#   hubot coffee bottom [n] - See the bottom coffee balances (defaults to 10)
 
 # water = 3/16 * cups
 # scoops = .75 * cups + 2
@@ -63,7 +61,7 @@ module.exports = (robot) ->
 
     msg.send "You need #{scoops} level scoops and #{water} L of water."
 
-  robot.respond /(?::coffee:|☕️) balance(?:\s+@?([^ ]+)\s*)?$/i, (msg) ->
+  robot.respond /coffee balance(?:\s+@?([^ ]+)\s*)?$/i, (msg) ->
     clientName = msg.match[1] || msg.message.user.name
     client = robot.brain.usersForRawFuzzyName(clientName)[0]
 
@@ -76,13 +74,13 @@ module.exports = (robot) ->
       return
     msg.send coffeeconomy.accountFormatter coffeeconomy.account client
 
-  robot.respond /(?::coffee:|☕️) top(?:\s+(\d+))?$/i, (msg) ->
+  robot.respond /coffee top(?:\s+(\d+))?$/i, (msg) ->
     limit = parseInt msg.match[1]?.trim() || 10
     count = 1
     msg.send "These are the top :coffee: accounts:\n" +
         (coffeeconomy.topListEntryFormatter count++, account for account in coffeeconomy.top limit).join("\n")
 
-  robot.respond /(?::coffee:|☕️) bottom(?:\s+(\d+))?$/i, (msg) ->
+  robot.respond /coffee bottom(?:\s+(\d+))?$/i, (msg) ->
     limit = parseInt msg.match[1]?.trim() || 10
     total = coffeeconomy.length()
 
