@@ -10,6 +10,10 @@
 #   hubot fresh pot - Announce that a pot is finished
 #   hubot fp - Alias for: hubot fresh pot
 #   hubot dibs - Reserve your spot in line for a current brew
+#   hubot :coffee: balance [user] - Check your coffee balance (defaults to you)
+#   hubot :coffee: top [n] - See the top coffee balances (defaults to 10)
+#   hubot :coffee: bottom [n] - See the bottom coffee balances (defaults to 10)
+
 
 
 # water = 3/16 * cups
@@ -44,6 +48,13 @@ freshPots = [
 module.exports = (robot) ->
   statusEmoji = new StatusEmoji
 
+  brewing = {}
+  robot.brain.on 'loaded', =>
+    robot.brain.data.coffee ?= { brewing: {} }
+    brewing = robot.brain.data.coffee.brewing ?= {}
+
+  coffeeconomy = new Coffeeconomy robot
+
   robot.respond /coffee (\d+)$/i, (msg) ->
     cups = msg.match[1]
 
@@ -52,7 +63,31 @@ module.exports = (robot) ->
 
     msg.send "You need #{scoops} level scoops and #{water} L of water."
 
-  brewing = {}
+  robot.respond /(?::coffee:|☕️) balance(?:\s+@?([^ ]+)\s*)?$/i, (msg) ->
+    clientName = msg.match[1] || msg.message.user.name
+    client = robot.brain.usersForRawFuzzyName(clientName)[0]
+
+    if not client
+      msg.send "Sorry, I don't know anyone named #{clientName}! #{statusEmoji.random('failure')}"
+      return
+
+    if not coffeeconomy.hasAccount client
+      msg.send "#{client.name} hasn't opened an account by `#{robot.alias}brewing` or `#{robot.alias}dibs`ing yet! #{statusEmoji.random('failure')}"
+      return
+    msg.send coffeeconomy.accountFormatter coffeeconomy.account client
+
+  robot.respond /(?::coffee:|☕️) top(?:\s+(\d+))?$/i, (msg) ->
+    limit = parseInt msg.match[1]?.trim() || 10
+    count = 1
+    msg.send "These are the top :coffee: accounts:\n" +
+        (coffeeconomy.topListEntryFormatter count++, account for account in coffeeconomy.top limit).join("\n")
+
+  robot.respond /(?::coffee:|☕️) bottom(?:\s+(\d+))?$/i, (msg) ->
+    limit = parseInt msg.match[1]?.trim() || 10
+    total = coffeeconomy.length()
+
+    msg.send "These are the bottom :coffee: accounts:\n" +
+        (coffeeconomy.topListEntryFormatter total--, account for account in coffeeconomy.bottom limit).join("\n")
 
   robot.respond /brewing\s*$/i, (msg) ->
     if isBrewing()
@@ -106,6 +141,8 @@ module.exports = (robot) ->
       dibs: [barista],
       messageMetadata: msg.envelope.message.metadata,
 
+    robot.brain.save()
+
     msg.send "@team Brew started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
       "To grab a spot use: #{robot.alias}dibs\n" +
       "To end the brew use: #{robot.alias}fresh pot"
@@ -118,24 +155,130 @@ module.exports = (robot) ->
 
     claims = []
     for i in [1..dibsLimit]
-      claims.push if (dibber = brewing.dibs[i-1])
-        "@#{dibber}#{if dibber == brewing.barista then ' (barista)' else ''}"
+      dibber = brewing.dibs[i-1]
+
+      if dibber
+        client = robot.brain.userForName dibber
+
+        if dibber == brewing.barista
+          coffeeconomy.deposit client, dibsLimit-1
+        else
+          coffeeconomy.withdraw client, 1
+
+        account = coffeeconomy.account client
+
+        claims.push("**@#{dibber}** " +
+          "#{if dibber == brewing.barista then '_(barista)_ :chart_with_upwards_trend:' else ':chart_with_downwards_trend:'} " +
+          "#{coffeeconomy.balanceFormatter account.balance}")
       else
-        "Unclaimed!"
+        claims.push "_Unclaimed!_"
 
     threadMsg = threadedMsg(msg)
     threadMsg.send "#{if teamNotify then '@team: ' else ''}Fresh Pot!!! #{msg.random freshPots} " +
       ":coffee: Claims (valid until #{dateformat expiry, 'h:MM:ss tt'}):\n" +
-      (" • ##{(parseInt index)+1}: #{claim}" for index, claim of claims).join("\n")
+      ("#{(parseInt index)+1}. #{claim}" for index, claim of claims).join("\n")
 
-
-    if claims.length
+    if claims.length > 1
       setTimeout ->
         threadMsg.send "Claims have expired!"
       , dibsDuration*1000
 
     brewing = {}
+    robot.brain.save()
 
   freeSpots = ->
     remaining = dibsLimit - brewing.dibs.length
     "#{remaining} dib#{if remaining == 1 then '' else 's'}"
+
+
+class Coffeeconomy
+  constructor: (@robot, brain_ns='coffeeconomy') ->
+    @brain = @robot.brain
+    @storage = {}
+    @brain.on 'loaded', =>
+      @storage = @brain.data[brain_ns] ?= {}
+      @robot.logger.info "Coffeeconomy loaded. #{this.length()} accounts loaded."
+
+  accountNumber: (client) ->
+    if typeof client is 'string'
+      client = @brain.userForName client
+
+    return client.id if 'id' of client
+
+  client: (accountNumber) ->
+    @brain.userForId accountNumber
+
+  accountFormatter: (account) ->
+    "**#{@clientFormatter account.accountNumber}**: #{@balanceFormatter account.balance} (#{@accountDetailsFormatter account})"
+
+  shortDateFormatter: (date) ->
+    dateformat date, "mmm d yyyy h:MMtt"
+
+  longDateFormatter: (date) ->
+    dateformat date, "ddd mmm d yyyy 'at' h:MM:ss tt Z"
+
+  clientFormatter: (accountNumber) ->
+    "#{(@client accountNumber).name}"
+
+  balanceFormatter: (balance) ->
+    "#{balance} :coffee:#{unless balance == 1 then 's' else ''}"
+
+  accountDetailsFormatter: (account) ->
+    "_+#{account.totals.deposited}_ / _-#{account.totals.withdrawn}_, _Txs:_ #{account.transactions}, _Opened:_ #{@shortDateFormatter account.created}#{if account.updated then ", _Updated:_ #{@longDateFormatter account.updated}" else ""}"
+
+  topListEntryFormatter: (index, account) ->
+    "_#{index}._ **#{@clientFormatter account.accountNumber}** #{@balanceFormatter account.balance}"
+
+  deposit: (client, amount) ->
+    @transaction client, amount
+
+  withdraw: (client, amount) ->
+    @transaction client, (-1 * amount)
+
+  transaction: (client, amount) ->
+    account = @account client
+    account.balance += amount
+    if amount > 0
+      account.totals.deposited += amount
+    else
+      account.totals.withdrawn -= amount
+    account.transactions++
+    @saveAccount account
+    @robot.logger.info "#{amount} :coffee:s #{if amount > 0 then 'deposited to' else 'withdrawn from'} #{client.name} (#{client.id})"
+
+  balance: (client) ->
+    (@account client).balance
+
+  hasAccount: (client) ->
+    (@accountNumber client) of @storage
+
+  account: (client) ->
+    @storage[@accountNumber client] || @openAccount client
+
+  openAccount: (client) ->
+    accountNumber: @accountNumber client
+    balance: 0
+    transactions: 0
+    totals:
+      deposited: 0
+      withdrawn: 0
+    created: new Date()
+
+  saveAccount: (account) ->
+    account.updated = new Date()
+    @storage[account.accountNumber] = account
+    @brain.save()
+
+  orderedAccounts: (descending = true, limit = false) ->
+    accounts = ( { accountNumber: accountNumber, balance: account.balance } for accountNumber, account of @storage )
+    accounts.sort -> arguments[if descending then 1 else 0].balance - arguments[if descending then 0 else 1].balance
+    accounts[...(limit||accounts.length())]
+
+  top: (limit = 10) ->
+    @orderedAccounts true, limit
+
+  bottom: (limit = 10) ->
+    @orderedAccounts false, limit
+
+  length: ->
+    Object.getOwnPropertyNames(@storage).length
