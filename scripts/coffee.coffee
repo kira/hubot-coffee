@@ -41,6 +41,17 @@ freshPots = [
   "https://thelordofthenerds.files.wordpress.com/2014/07/colbert-loves-coffee-o.gif",
   "http://cdn1.theodysseyonline.com/files/2015/06/26/635709513164674737586848637_coffee-talk.gif",
   "http://cdn1.theodysseyonline.com/files/2015/07/10/635720909538639483647877704_coffee-Elf.gif",
+  "https://media.giphy.com/media/11Lz1Y4n1f2j96/giphy.gif",
+  "http://imagesmtv-a.akamaihd.net/uri/mgid:file:http:shared:mtv.com/news/wp-content/uploads/2015/10/coffee-iv-1443999849.gif",
+  "https://media.giphy.com/media/yLpNlfdHBaXQs/giphy.gif",
+  "http://i.imgur.com/EYRpuaz.gif",
+  "http://i0.kym-cdn.com/photos/images/newsfeed/000/605/727/cae.gif",
+  "http://img.memecdn.com/this-coffee-is-fantastic-now-where-is-your-peroxide_o_588657.gif",
+  "http://img.memecdn.com/le-coffee_o_523768.gif",
+  "https://s-media-cache-ak0.pinimg.com/originals/bb/74/cb/bb74cbbed8dca8ca4e25f8ffa5156620.gif",
+  "http://31.media.tumblr.com/3ae02ce94f54ed9e47a7f214f1e390c2/tumblr_n6mycaAO111somw7ho1_250.gif",
+  "https://ak-hdl.buzzfed.com/static/2015-05/10/20/imagebuzz/webdr11/anigif_optimized-15275-1431304767-6.gif",
+  "https://media.giphy.com/media/iHgMN3wishlde/giphy.gif",
 ]
 
 module.exports = (robot) ->
