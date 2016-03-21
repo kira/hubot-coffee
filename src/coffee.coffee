@@ -1,11 +1,11 @@
-# Description:
-#   Kira Caffienation Support Tools
+# Description
+#   A hubot script for announcing & claiming coffee
 #
-# Dependencies:
-#    "dateformat": "1.0.x"
+# Configuration:
+#   HUBOT_COFFEE_DIBS_LIMIT Set the dibs limit (Default 6)
+#   HUBOT_COFFEE_DIBS_DURATION Set the dibs time limit in seconds (Default 600 seconds (10 minutes))
 #
 # Commands:
-#   hubot coffee [cups] - What you need to make [cups] cups of coffee.
 #   hubot brewing - Start a new brewing lineup
 #   hubot fresh pot - Announce that a pot is finished
 #   hubot fp - Alias for: hubot fresh pot
@@ -13,15 +13,24 @@
 #   hubot coffee balance [user] - Check your coffee balance (defaults to you)
 #   hubot coffee top [n] - See the top coffee balances (defaults to 10)
 #   hubot coffee bottom [n] - See the bottom coffee balances (defaults to 10)
-
-# water = 3/16 * cups
-# scoops = .75 * cups + 2
+#
+#
+# Author:
+#   brent@kiratalent.com, Kira Talent Inc.
 
 dateformat = require 'dateformat'
-StatusEmoji = require './status-emoji'
 
 dibsLimit = process.env.HUBOT_COFFEE_DIBS_LIMIT || 6
-dibsDuration = process.env.HUBOT_COFFEE_DIBS_DURATION || (60*10)
+dibsDuration = process.env.HUBOT_COFFEE_DIBS_DURATION || (60 * 10)
+
+class StatusEmoji
+  success: [':dancer:', ':relaxed:', ':grin:', ':smile:', ':sunglasses:'],
+  pending: [':worried:', ':see_no_evil:', ':no_mouth:', ':neutral_face:']
+  failure: [':cry:', ':angry:', ':fearful:', ':sob:', ':disappointed:']
+
+  random: (status) ->
+    emojis = @[status] || []
+    return emojis[Math.floor(Math.random() * emojis.length)]
 
 freshPots = [
   "http://stream1.gifsoup.com/view6/3131142/chug-coffee-o.gif",
@@ -59,18 +68,10 @@ module.exports = (robot) ->
 
   brewing = {}
   robot.brain.on 'loaded', =>
-    robot.brain.data.coffee ?= { brewing: {} }
+    robot.brain.data.coffee ?= {brewing: {}}
     brewing = robot.brain.data.coffee.brewing ?= {}
 
   coffeeconomy = new Coffeeconomy robot
-
-  robot.respond /coffee (\d+)$/i, (msg) ->
-    cups = msg.match[1]
-
-    water = (3/16) * cups
-    scoops = (0.75 * cups) + 2
-
-    msg.send "You need #{scoops} level scoops and #{water} L of water."
 
   robot.respond /coffee balance(?:\s+@?([^ ]+)\s*)?$/i, (msg) ->
     clientName = msg.match[1] || msg.message.user.name
@@ -81,27 +82,35 @@ module.exports = (robot) ->
       return
 
     if not coffeeconomy.hasAccount client
-      msg.send "#{client.name} hasn't opened an account by `#{robot.alias}brewing` or `#{robot.alias}dibs`ing yet! #{statusEmoji.random('failure')}"
+      msg.send "#{client.name} hasn't opened an account by `#{robot.alias}brewing` or " +
+          "`#{robot.alias}dibs`ing yet! #{statusEmoji.random('failure')}"
       return
     msg.send coffeeconomy.accountFormatter coffeeconomy.account client
 
   robot.respond /coffee top(?:\s+(\d+))?$/i, (msg) ->
     limit = parseInt msg.match[1]?.trim() || 10
     count = 1
-    msg.send "These are the top :coffee: accounts:\n" +
-        (coffeeconomy.topListEntryFormatter count++, account for account in coffeeconomy.top limit).join("\n")
+    topList = (
+      coffeeconomy.topListEntryFormatter count++, account\
+      for account in coffeeconomy.top limit
+    )
+    msg.send "These are the top :coffee: accounts:\n #{topList.join('\n')}"
 
   robot.respond /coffee bottom(?:\s+(\d+))?$/i, (msg) ->
     limit = parseInt msg.match[1]?.trim() || 10
     total = coffeeconomy.length()
 
-    msg.send "These are the bottom :coffee: accounts:\n" +
-        (coffeeconomy.topListEntryFormatter total--, account for account in coffeeconomy.bottom limit).join("\n")
+    bottomList = (
+      coffeeconomy.topListEntryFormatter total--, account\
+      for account in coffeeconomy.bottom limit
+    )
+
+    msg.send "These are the bottom :coffee: accounts:\n #{bottomList.join('\n')}"
 
   robot.respond /brewing\s*$/i, (msg) ->
     if isBrewing()
-      msg.send "A brew is already underway by (@#{brewing.barista})! #{statusEmoji.random('failure')}\n" +
-        freeSpots()
+      msg.send "A brew is already underway by (@#{brewing.barista})! " +
+          "#{statusEmoji.random('failure')}\n" + freeSpots()
       return
 
     createBrew msg
@@ -126,18 +135,20 @@ module.exports = (robot) ->
 
     brewing.dibs.push(dibber)
 
-    threadedMsg(msg).send "Ok @#{dibber}, you grabbed :coffee: ##{brewing.dibs.length}! #{statusEmoji.random('success')}"
+    threadedMsg(msg).send "Ok @#{dibber}, you grabbed :coffee: ##{brewing.dibs.length}! " +
+        "#{statusEmoji.random('success')}"
 
   isBrewing = ->
     return brewing.dibs?
 
   threadedMsg = (msg) ->
-    # Ensure that the vote response sticks to the original thread
-    metadata = msg.envelope.metadata || {}
-    metadata.room = brewing.messageMetadata.room if brewing.messageMetadata.room
-    metadata.thread_id = brewing.messageMetadata.thread_id if brewing.messageMetadata.thread_id
-    metadata.message_id = brewing.messageMetadata.message_id if brewing.messageMetadata.message_id
-    msg.envelope.metadata = metadata
+# Ensure that the vote response sticks to the original thread if using the flowdock adapter
+    if robot.adatperName = 'flowdock'
+      metadata = msg.envelope.metadata || {}
+      metadata.room = brewing.messageMetadata.room if brewing.messageMetadata.room
+      metadata.thread_id = brewing.messageMetadata.thread_id if brewing.messageMetadata.thread_id
+      metadata.message_id = brewing.messageMetadata.message_id if brewing.messageMetadata.message_id
+      msg.envelope.metadata = metadata
     msg
 
   handleNoBrew = (msg) ->
@@ -148,49 +159,55 @@ module.exports = (robot) ->
     brewing =
       barista: barista
       dibs: [barista],
-      messageMetadata: msg.envelope.message.metadata,
+      messageMetadata: msg.envelope.message?.metadata,
 
     robot.brain.save()
 
     msg.send "@team Brew started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
-      "To grab a spot use: #{robot.alias}dibs\n" +
-      "To end the brew use: #{robot.alias}fresh pot"
+        "To grab a spot use: #{robot.alias}dibs\n" +
+        "To end the brew use: #{robot.alias}fresh pot"
 
   endBrew = (msg) ->
-
     teamNotify = brewing.dibs.length < dibsLimit
 
-    expiry = new Date (new Date()).getTime() + dibsDuration*1000
+    expiry = new Date (new Date()).getTime() + dibsDuration * 1000
 
     claims = []
     for i in [1..dibsLimit]
-      dibber = brewing.dibs[i-1]
+      dibber = brewing.dibs[i - 1]
 
       if dibber
         client = robot.brain.userForName dibber
 
         if dibber == brewing.barista
-          coffeeconomy.deposit client, dibsLimit-1
+          coffeeconomy.deposit client, dibsLimit - 1
         else
           coffeeconomy.withdraw client, 1
 
         account = coffeeconomy.account client
 
-        claims.push("**@#{dibber}** " +
-          "#{if dibber == brewing.barista then '_(barista)_ :chart_with_upwards_trend:' else ':chart_with_downwards_trend:'} " +
-          "#{coffeeconomy.balanceFormatter account.balance}")
+        dibberLabel = "**@#{dibber}**"
+
+        if dibber == brewing.barista
+          txIcon = ":chart_with_upwards_trend:"
+          dibberLabel += " _(barista)_"
+        else
+          txIcon = ":chart_with_downwards_trend:"
+
+        claims.push("#{dibberLabel} #{txIcon} " +
+            "#{coffeeconomy.balanceFormatter account.balance}")
       else
         claims.push "_Unclaimed!_"
 
     threadMsg = threadedMsg(msg)
     threadMsg.send "#{if teamNotify then '@team: ' else ''}Fresh Pot!!! #{msg.random freshPots} " +
-      ":coffee: Claims (valid until #{dateformat expiry, 'h:MM:ss tt'}):\n" +
-      ("#{(parseInt index)+1}. #{claim}" for index, claim of claims).join("\n")
+        ":coffee: Claims (valid until #{dateformat expiry, 'h:MM:ss tt'}):\n" +
+        ("#{(parseInt index) + 1}. #{claim}" for index, claim of claims).join("\n")
 
     if claims.length > 1
       setTimeout ->
         threadMsg.send "Claims have expired!"
-      , dibsDuration*1000
+      , dibsDuration * 1000
 
     brewing = {}
     robot.brain.save()
@@ -201,7 +218,7 @@ module.exports = (robot) ->
 
 
 class Coffeeconomy
-  constructor: (@robot, brain_ns='coffeeconomy') ->
+  constructor: (@robot, brain_ns = 'coffeeconomy') ->
     @brain = @robot.brain
     @storage = {}
     @brain.on 'loaded', =>
@@ -218,7 +235,8 @@ class Coffeeconomy
     @brain.userForId accountNumber
 
   accountFormatter: (account) ->
-    "**#{@clientFormatter account.accountNumber}**: #{@balanceFormatter account.balance} (#{@accountDetailsFormatter account})"
+    "**#{@clientFormatter account.accountNumber}**: #{@balanceFormatter account.balance} " +
+      "(#{@accountDetailsFormatter account})"
 
   shortDateFormatter: (date) ->
     dateformat date, "mmm d yyyy h:MMtt"
@@ -233,7 +251,9 @@ class Coffeeconomy
     "#{balance} :coffee:#{unless balance == 1 then 's' else ''}"
 
   accountDetailsFormatter: (account) ->
-    "_+#{account.totals.deposited}_ / _-#{account.totals.withdrawn}_, _Txs:_ #{account.transactions}, _Opened:_ #{@shortDateFormatter account.created}#{if account.updated then ", _Updated:_ #{@longDateFormatter account.updated}" else ""}"
+    "_+#{account.totals.deposited}_ / _-#{account.totals.withdrawn}_, " +
+      "_Txs:_ #{account.transactions}, _Opened:_ #{@shortDateFormatter account.created}" +
+      " #{if account.updated then ", _Updated:_ #{@longDateFormatter account.updated}" else ""}"
 
   topListEntryFormatter: (index, account) ->
     "_#{index}._ **#{@clientFormatter account.accountNumber}** #{@balanceFormatter account.balance}"
@@ -253,7 +273,10 @@ class Coffeeconomy
       account.totals.withdrawn -= amount
     account.transactions++
     @saveAccount account
-    @robot.logger.info "#{amount} :coffee:s #{if amount > 0 then 'deposited to' else 'withdrawn from'} #{client.name} (#{client.id})"
+
+    txType = if amount > 0 then 'deposited to' else 'withdrawn from'
+
+    @robot.logger.info "#{amount} :coffee:s #{txType} #{client.name} (#{client.id})"
 
   balance: (client) ->
     (@account client).balance
@@ -279,9 +302,15 @@ class Coffeeconomy
     @brain.save()
 
   orderedAccounts: (descending = true, limit = false) ->
-    accounts = ( { accountNumber: accountNumber, balance: account.balance } for accountNumber, account of @storage )
-    accounts.sort -> arguments[if descending then 1 else 0].balance - arguments[if descending then 0 else 1].balance
-    accounts[...(limit||accounts.length())]
+    accounts = ( {
+      accountNumber: accountNumber,
+      balance: account.balance
+    } for accountNumber, account of @storage )
+
+    first = if descending then 1 else 0
+    second = if descending then 0 else 1
+    accounts.sort -> arguments[first].balance - arguments[second].balance
+    accounts[...(limit || accounts.length())]
 
   top: (limit = 10) ->
     @orderedAccounts true, limit
