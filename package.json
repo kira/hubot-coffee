@@ -17,7 +17,7 @@
   },
 
   "dependencies": {
-    "dateformat": "1.0.x",
+    "dateformat": "1.0.x"
   },
 
   "peerDependencies": {
