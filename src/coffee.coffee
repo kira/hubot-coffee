@@ -71,6 +71,10 @@ module.exports = (robot) ->
     robot.brain.data.coffee ?= {brewing: {}}
     brewing = robot.brain.data.coffee.brewing ?= {}
 
+  bounty = {
+    price: 0
+  }
+
   coffeeconomy = new Coffeeconomy robot
 
   robot.respond /coffee balance(?:\s+@?([^ ]+)\s*)?$/i, (msg) ->
@@ -115,6 +119,25 @@ module.exports = (robot) ->
 
     createBrew msg
 
+  robot.respond /coffee bounty(?:\s+(\d+))?$/i, (msg) ->
+    if isBrewing()
+      msg.send "A brew is already underway by (@#{brewing.barista})!" +
+          "#{statusEmoji.randim('failure')}\n" + freeSpots()
+
+    hunter = robot.brain.usersForFuzzyName(msg.message.user['name'])[0].name
+    proposedPrice = parseInt msg.match[1]?.trim() || 0
+
+    if bounty.price > 0 and proposedPrice > bounty.price
+      msg.send "@team #{hunter} has increased the bounty from #{bounty.price} to #{proposedPrice}."
+    else if bounty.price > 0 and proposedPrice <= bounty.price
+      msg.send "A bounty of #{bounty.price} by #{bounty.hunter} has already been put out. #{statusEmoji.random('failure')}"
+      return
+    else
+      msg.send "@team #{hunter} has put out a bounty of #{proposedPrice}."
+
+    bounty.price = proposedPrice
+    bounty.hunter = hunter
+
   robot.respond /(fresh[ -]?pot|fp)\s*$/i, (msg) ->
     return handleNoBrew msg if not isBrewing()
 
@@ -124,7 +147,9 @@ module.exports = (robot) ->
     return handleNoBrew msg if not isBrewing()
 
     dibber = robot.brain.usersForFuzzyName(msg.message.user['name'])[0].name
+    dibs(dibber)
 
+  dibs = (dibber) ->
     if dibber in brewing.dibs
       msg.send "Nice try @#{dibber}, you already grabbed a spot! #{statusEmoji.random('failure')}"
       return
@@ -160,12 +185,24 @@ module.exports = (robot) ->
       barista: barista
       dibs: [barista],
       messageMetadata: msg.envelope.message?.metadata,
+      brewing.bounty = bountyAmount,
 
     robot.brain.save()
 
-    msg.send "@team Brew started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
-        "To grab a spot use: #{robot.alias}dibs\n" +
-        "To end the brew use: #{robot.alias}fresh pot"
+    if bounty.amount > 0 and barista is not bounty.hunter
+      msg.send "@team A bountied Brew has been started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
+          "@#{brewing.barista} will get an extra #{bounty.amount} coffeeconomy points for this brew."
+          "To grab a spot use: #{robot.alias}dibs\n" +
+          "To end the brew use: #{robot.alias}fresh pot"
+
+      dibs(bounty.hunter)
+    if bounty.amount > 0 and barista is bounty.hunter
+      msg.send "Hey @{bounty.hunter} can't collect your own bounty! Your bounty has been cancelled."
+      bounty.amount = 0
+    else
+      msg.send "@team Brew started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
+          "To grab a spot use: #{robot.alias}dibs\n" +
+          "To end the brew use: #{robot.alias}fresh pot"
 
   endBrew = (msg) ->
     teamNotify = brewing.dibs.length < dibsLimit
@@ -181,6 +218,12 @@ module.exports = (robot) ->
 
         if dibber == brewing.barista
           coffeeconomy.deposit client, dibsLimit - 1
+
+          if bounty.price > 0
+            coffeeconomy.deposit client, bounty.price
+
+            bountyHunter = robot.brain.userForName bounty.hunter
+            coffeeconomy.withdraw bountyHunter, bounty.price
         else
           coffeeconomy.withdraw client, 1
 
