@@ -185,20 +185,19 @@ module.exports = (robot) ->
       barista: barista
       dibs: [barista],
       messageMetadata: msg.envelope.message?.metadata,
-      brewing.bounty = bountyAmount
 
     robot.brain.save()
 
-    if bounty.amount > 0 and barista is not bounty.requester
+    if bounty.price > 0 and barista is not bounty.requester
       msg.send "@team A bountied Brew has been started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
-          "@#{brewing.barista} will get an extra #{bounty.amount} coffeeconomy points for this brew."
+          "@#{brewing.barista} will get an extra #{bounty.price} coffeeconomy points for this brew."
           "To grab a spot use: #{robot.alias}dibs\n" +
           "To end the brew use: #{robot.alias}fresh pot"
 
       dibs(bounty.requester)
-    if bounty.amount > 0 and barista is bounty.requester
+    if bounty.price > 0 and barista is bounty.requester
       msg.send "Hey @{bounty.requester} can't collect your own bounty! Your bounty has been cancelled."
-      bounty.amount = 0
+      bounty.price = 0
     else
       msg.send "@team Brew started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
           "To grab a spot use: #{robot.alias}dibs\n" +
