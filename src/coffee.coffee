@@ -13,6 +13,7 @@
 #   hubot coffee balance [user] - Check your coffee balance (defaults to you)
 #   hubot coffee top [n] - See the top coffee balances (defaults to 10)
 #   hubot coffee bottom [n] - See the bottom coffee balances (defaults to 10)
+#   hubot coffee bounty n - Issue a bounty to be claimed by the next brew
 #
 #
 # Author:
