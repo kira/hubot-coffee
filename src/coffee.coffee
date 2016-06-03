@@ -158,7 +158,7 @@ module.exports = (robot) ->
     return handleNoBrew msg if not isBrewing()
 
     dibber = robot.brain.usersForFuzzyName(msg.message.user['name'])[0].name
-    dibs dibber, msg
+    dib dibber, msg
 
   hasBounty = -> bounty.reward > 0
 
@@ -171,7 +171,7 @@ module.exports = (robot) ->
       reward: reward,
 
 
-  dibs = (dibber, msg) ->
+  dib = (dibber, msg) ->
     if dibber in brewing.dibs
       msg.send "Nice try @#{dibber}, you already grabbed a spot! #{statusEmoji.random('failure')}"
       return
@@ -226,7 +226,7 @@ module.exports = (robot) ->
           "**To grab a spot use: #{robot.alias}dibs**\n" +
           "**To end the brew use: #{robot.alias}fresh pot**"
 
-      dibs bounty.issuer, msg
+      dib bounty.issuer, msg
     else
       msg.send "@team Brew started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
           "To grab a spot use: #{robot.alias}dibs\n" +
