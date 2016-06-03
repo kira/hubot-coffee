@@ -223,14 +223,14 @@ module.exports = (robot) ->
     if hasBounty()
       msg.send "@team A bountied Brew has been started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
           "@#{brewing.barista} will get an extra #{bounty.reward} :coffee:s for this brew.\n" +
-          "**To grab a spot use: #{robot.alias}dibs**\n" +
-          "**To end the brew use: #{robot.alias}fresh pot**"
+          "To grab a spot use: `#{robot.alias}dibs`\n" +
+          "To end the brew use: `#{robot.alias}fresh pot`"
 
       dib bounty.issuer, msg
     else
       msg.send "@team Brew started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
-          "To grab a spot use: #{robot.alias}dibs\n" +
-          "To end the brew use: #{robot.alias}fresh pot"
+          "To grab a spot use: `#{robot.alias}dibs`\n" +
+          "To end the brew use: `#{robot.alias}fresh pot`"
 
   endBrew = (msg) ->
     teamNotify = brewing.dibs.length < dibsLimit
