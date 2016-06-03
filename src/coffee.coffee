@@ -71,9 +71,7 @@ module.exports = (robot) ->
     robot.brain.data.coffee ?= {brewing: {}}
     brewing = robot.brain.data.coffee.brewing ?= {}
 
-  bounty = {
-    price: 0
-  }
+  bounty = {}
 
   coffeeconomy = new Coffeeconomy robot
 
@@ -123,32 +121,33 @@ module.exports = (robot) ->
     if isBrewing()
       msg.send "A brew is already underway by (@#{brewing.barista})!" +
           "#{statusEmoji.random('failure')}\n" + freeSpots()
+      return
 
     issuer = robot.brain.usersForFuzzyName(msg.message.user['name'])[0].name
-    proposedPrice = parseInt msg.match[1]?.trim() || 0
+    proposedReward = parseInt msg.match[1]?.trim() || 0
     account = coffeeconomy.account issuer
 
     if not coffeeconomy.hasAccount issuer
       msg.send "Sorry @#{issuer}, you don't have an account with us! #{statusEmoji.random('failure')}"
       return
     
-    if proposedPrice > account.balance
+    if proposedReward > account.balance
       msg.send "Whoa whoa whoa @#{issuer}, you don't have that many :coffee:s cowboy. #{statusEmoji.random('failure')} \n" +
         "Your current balance is: \n#{coffeeconomy.accountFormatter account}"
       return
 
-    if hasBounty() and proposedPrice > bounty.price
+    if hasBounty() and proposedReward > bounty.reward
       if issuer is bounty.issuer
-        msg.send "@#{issuer} has raised the bounty from #{bounty.price} to #{proposedPrice}."
+        msg.send "@#{issuer} has raised the bounty from #{bounty.reward} to #{proposedReward}."
       else
-        msg.send "@#{issuer} has outbid @#{bounty.issuer}'s bounty of #{bounty.price} by increasing it to #{proposedPrice}."
-    else if hasBounty() and proposedPrice <= bounty.price
-      msg.send "A bounty of #{bounty.price} by #{issuer} has already been put out. #{statusEmoji.random('failure')}"
+        msg.send "@#{issuer} has outbid @#{bounty.issuer}'s bounty of #{bounty.reward} by increasing it to #{proposedReward}."
+    else if hasBounty() and proposedReward <= bounty.reward
+      msg.send "A bounty of #{bounty.reward} by #{issuer} has already been put out. #{statusEmoji.random('failure')}"
       return
     else
-      msg.send "@team #{issuer} has put out a bounty of #{proposedPrice}."
+      msg.send "@team #{issuer} has put out a bounty of #{proposedReward}."
 
-    createBounty issuer, proposedPrice
+    createBounty issuer, proposedReward
 
   robot.respond /(fresh[ -]?pot|fp)\s*$/i, (msg) ->
     return handleNoBrew msg if not isBrewing()
@@ -161,15 +160,15 @@ module.exports = (robot) ->
     dibber = robot.brain.usersForFuzzyName(msg.message.user['name'])[0].name
     dibs dibber, msg
 
-  hasBounty = -> bounty.price > 0
+  hasBounty = -> bounty.reward > 0
 
   clearBounty = ->
     bounty = {}
 
-  createBounty = (issuer, price) ->
+  createBounty = (issuer, reward) ->
     bounty = 
       issuer: issuer,
-      price: price,
+      reward: reward,
 
 
   dibs = (dibber, msg) ->
@@ -209,7 +208,7 @@ module.exports = (robot) ->
   createBrew = (msg) ->
     barista = robot.brain.usersForFuzzyName(msg.message.user['name'])[0].name
 
-    if bounty.price > 0 and barista is bounty.issuer
+    if bounty.reward > 0 and barista is bounty.issuer
       msg.send "Hey @#{bounty.issuer} can't collect your own bounty! Your bounty has been cancelled. #{statusEmoji.random('failure')}"
       clearBounty
       return
@@ -223,7 +222,7 @@ module.exports = (robot) ->
 
     if hasBounty()
       msg.send "@team A bountied Brew has been started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
-          "@#{brewing.barista} will get an extra #{bounty.price} :coffee:s for this brew.\n" +
+          "@#{brewing.barista} will get an extra #{bounty.reward} :coffee:s for this brew.\n" +
           "**To grab a spot use: #{robot.alias}dibs**\n" +
           "**To end the brew use: #{robot.alias}fresh pot**"
 
@@ -249,8 +248,8 @@ module.exports = (robot) ->
           coffeeconomy.deposit client, dibsLimit - 1
 
           if hasBounty()
-            coffeeconomy.withdraw bounty.issuer, bounty.price
-            coffeeconomy.deposit client, bounty.price
+            coffeeconomy.withdraw bounty.issuer, bounty.reward
+            coffeeconomy.deposit client, bounty.reward
         else
           coffeeconomy.withdraw client, 1
 
@@ -263,7 +262,7 @@ module.exports = (robot) ->
           txIcon = ":chart_with_upwards_trend:"
           dibberLabel += " _(barista)_"
         else if hasBounty() and dibber == bounty.issuer
-          dibberLabel += " _(#{bounty.price} :coffee:#{if bounty.price != 1 then 's' else ''} bounty issuer)_"
+          dibberLabel += " _(#{bounty.reward} :coffee:#{if bounty.reward != 1 then 's' else ''} bounty issuer)_"
           
 
         claims.push("#{dibberLabel} #{txIcon} " +
