@@ -182,7 +182,7 @@ module.exports = (robot) ->
 
     brewing.dibs.push(dibber)
 
-    if bounty.issuer is dibber and hasBounty()
+    if hasBounty() and bounty.issuer is dibber
         threadedMsg(msg).send "@#{dibber} has been automatically granted :coffee: spot ##{brewing.dibs.length} for their _outstanding_ bounty! " +
             "#{statusEmoji.random('success')}"
     else
@@ -209,7 +209,7 @@ module.exports = (robot) ->
     barista = robot.brain.usersForFuzzyName(msg.message.user['name'])[0].name
 
     if bounty.reward > 0 and barista is bounty.issuer
-      msg.send "Hey @#{bounty.issuer} can't collect your own bounty! Your bounty has been cancelled. #{statusEmoji.random('failure')}"
+      msg.send "Hey @#{bounty.issuer} you can't collect your own bounty! **Your bounty has been cancelled.** #{statusEmoji.random('failure')}"
       clearBounty
       return
 
