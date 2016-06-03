@@ -13,6 +13,7 @@
 #   hubot coffee balance [user] - Check your coffee balance (defaults to you)
 #   hubot coffee top [n] - See the top coffee balances (defaults to 10)
 #   hubot coffee bottom [n] - See the bottom coffee balances (defaults to 10)
+#   hubot coffee bounty n - Issue a bounty to be claimed by the next brew
 #
 #
 # Author:
@@ -71,6 +72,8 @@ module.exports = (robot) ->
     robot.brain.data.coffee ?= {brewing: {}}
     brewing = robot.brain.data.coffee.brewing ?= {}
 
+  bounty = {}
+
   coffeeconomy = new Coffeeconomy robot
 
   robot.respond /coffee balance(?:\s+@?([^ ]+)\s*)?$/i, (msg) ->
@@ -115,6 +118,38 @@ module.exports = (robot) ->
 
     createBrew msg
 
+  robot.respond /coffee bounty\s+(\d+)$/i, (msg) ->
+    if isBrewing()
+      msg.send "A brew is already underway by (@#{brewing.barista})!" +
+          "#{statusEmoji.random('failure')}\n" + freeSpots()
+      return
+
+    issuer = robot.brain.usersForFuzzyName(msg.message.user['name'])[0].name
+    proposedReward = parseInt msg.match[1]?.trim() || 0
+    account = coffeeconomy.account issuer
+
+    if not coffeeconomy.hasAccount issuer
+      msg.send "Sorry @#{issuer}, you don't have an account with us! #{statusEmoji.random('failure')}"
+      return
+    
+    if proposedReward > account.balance
+      msg.send "Whoa whoa whoa @#{issuer}, you don't have that many :coffee:s cowboy. #{statusEmoji.random('failure')} \n" +
+        "Your current balance is: \n#{coffeeconomy.accountFormatter account}"
+      return
+
+    if hasBounty() and proposedReward > bounty.reward
+      if issuer is bounty.issuer
+        msg.send "@#{issuer} has raised the bounty from #{bounty.reward} to #{proposedReward}."
+      else
+        msg.send "@#{issuer} has outbid @#{bounty.issuer}'s bounty of #{bounty.reward} by increasing it to #{proposedReward}."
+    else if hasBounty() and proposedReward <= bounty.reward
+      msg.send "A bounty of #{bounty.reward} by #{issuer} has already been put out. #{statusEmoji.random('failure')}"
+      return
+    else
+      msg.send "@team #{issuer} has issued a bounty of #{proposedReward}."
+
+    createBounty issuer, proposedReward
+
   robot.respond /(fresh[ -]?pot|fp)\s*$/i, (msg) ->
     return handleNoBrew msg if not isBrewing()
 
@@ -124,7 +159,20 @@ module.exports = (robot) ->
     return handleNoBrew msg if not isBrewing()
 
     dibber = robot.brain.usersForFuzzyName(msg.message.user['name'])[0].name
+    dib dibber, msg
 
+  hasBounty = -> bounty.reward > 0
+
+  clearBounty = ->
+    bounty = {}
+
+  createBounty = (issuer, reward) ->
+    bounty = 
+      issuer: issuer,
+      reward: reward,
+
+
+  dib = (dibber, msg) ->
     if dibber in brewing.dibs
       msg.send "Nice try @#{dibber}, you already grabbed a spot! #{statusEmoji.random('failure')}"
       return
@@ -135,8 +183,12 @@ module.exports = (robot) ->
 
     brewing.dibs.push(dibber)
 
-    threadedMsg(msg).send "Ok @#{dibber}, you grabbed :coffee: ##{brewing.dibs.length}! " +
-        "#{statusEmoji.random('success')}"
+    if hasBounty() and bounty.issuer is dibber
+        threadedMsg(msg).send "@#{dibber} has been automatically granted :coffee: spot ##{brewing.dibs.length} for their _outstanding_ bounty! " +
+            "#{statusEmoji.random('success')}"
+    else
+        threadedMsg(msg).send "Ok @#{dibber}, you grabbed :coffee: ##{brewing.dibs.length}! " +
+            "#{statusEmoji.random('success')}"
 
   isBrewing = ->
     return brewing.dibs?
@@ -156,6 +208,11 @@ module.exports = (robot) ->
 
   createBrew = (msg) ->
     barista = robot.brain.usersForFuzzyName(msg.message.user['name'])[0].name
+
+    if bounty.reward > 0 and barista is bounty.issuer
+      msg.send "Hey @#{bounty.issuer} you can't collect your own bounty! **Your bounty has been cancelled.** #{statusEmoji.random('failure')}"
+      clearBounty
+
     brewing =
       barista: barista
       dibs: [barista],
@@ -163,9 +220,17 @@ module.exports = (robot) ->
 
     robot.brain.save()
 
-    msg.send "@team Brew started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
-        "To grab a spot use: #{robot.alias}dibs\n" +
-        "To end the brew use: #{robot.alias}fresh pot"
+    if hasBounty()
+      msg.send "@team A bountied brew has been started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
+          "@#{brewing.barista} will be rewarded #{bounty.reward} :coffee:s for this brew.\n" +
+          "To grab a spot use: `#{robot.alias}dibs`\n" +
+          "To end the brew use: `#{robot.alias}fresh pot`"
+
+      dib bounty.issuer, msg
+    else
+      msg.send "@team Brew started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
+          "To grab a spot use: `#{robot.alias}dibs`\n" +
+          "To end the brew use: `#{robot.alias}fresh pot`"
 
   endBrew = (msg) ->
     teamNotify = brewing.dibs.length < dibsLimit
@@ -181,6 +246,10 @@ module.exports = (robot) ->
 
         if dibber == brewing.barista
           coffeeconomy.deposit client, dibsLimit - 1
+
+          if hasBounty()
+            coffeeconomy.withdraw bounty.issuer, bounty.reward
+            coffeeconomy.deposit client, bounty.reward
         else
           coffeeconomy.withdraw client, 1
 
@@ -188,11 +257,13 @@ module.exports = (robot) ->
 
         dibberLabel = "**@#{dibber}**"
 
+        txIcon = ":chart_with_downwards_trend:"
         if dibber == brewing.barista
           txIcon = ":chart_with_upwards_trend:"
           dibberLabel += " _(barista)_"
-        else
-          txIcon = ":chart_with_downwards_trend:"
+        else if hasBounty() and dibber == bounty.issuer
+          dibberLabel += " _(#{bounty.reward} :coffee:#{if bounty.reward != 1 then 's' else ''} bounty issuer)_"
+          
 
         claims.push("#{dibberLabel} #{txIcon} " +
             "#{coffeeconomy.balanceFormatter account.balance}")
