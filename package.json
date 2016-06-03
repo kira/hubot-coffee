@@ -1,7 +1,7 @@
 {
   "name": "hubot-coffee",
   "description": "A hubot script for announcing & claiming coffee",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "author": "brent@kiratalent.com",
   "license": "MIT",
 
