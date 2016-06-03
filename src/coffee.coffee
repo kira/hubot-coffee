@@ -222,7 +222,7 @@ module.exports = (robot) ->
     robot.brain.save()
 
     if hasBounty()
-      msg.send "@team A bountied Brew has been started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
+      msg.send "@team A bountied brew has been started by @#{brewing.barista}! #{statusEmoji.random('success')}\n" +
           "@#{brewing.barista} will be rewarded #{bounty.reward} :coffee:s for this brew.\n" +
           "To grab a spot use: `#{robot.alias}dibs`\n" +
           "To end the brew use: `#{robot.alias}fresh pot`"
