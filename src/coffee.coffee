@@ -145,7 +145,7 @@ module.exports = (robot) ->
       msg.send "A bounty of #{bounty.reward} by #{issuer} has already been put out. #{statusEmoji.random('failure')}"
       return
     else
-      msg.send "@team #{issuer} has put out a bounty of #{proposedReward}."
+      msg.send "@team #{issuer} has issued a bounty of #{proposedReward}."
 
     createBounty issuer, proposedReward
 
