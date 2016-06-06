@@ -13,7 +13,7 @@
 #   hubot coffee balance [user] - Check your coffee balance (defaults to you)
 #   hubot coffee top [n] - See the top coffee balances (defaults to 10)
 #   hubot coffee bottom [n] - See the bottom coffee balances (defaults to 10)
-#   hubot coffee bounty n - Issue a bounty to be claimed by the next brew
+#   hubot coffee bounty <n> - Issue a bounty worth `<n>` :coffee:s to be claimed by the next barista
 #
 #
 # Author:
@@ -128,10 +128,13 @@ module.exports = (robot) ->
     proposedReward = parseInt msg.match[1]?.trim() || 0
     account = coffeeconomy.account issuer
 
+    if not proposedReward
+      return
+
     if not coffeeconomy.hasAccount issuer
       msg.send "Sorry @#{issuer}, you don't have an account with us! #{statusEmoji.random('failure')}"
       return
-    
+
     if proposedReward > account.balance
       msg.send "Whoa whoa whoa @#{issuer}, you don't have that many :coffee:s cowboy. #{statusEmoji.random('failure')} \n" +
         "Your current balance is: \n#{coffeeconomy.accountFormatter account}"
@@ -143,7 +146,7 @@ module.exports = (robot) ->
       else
         msg.send "@#{issuer} has outbid @#{bounty.issuer}'s bounty of #{bounty.reward} by increasing it to #{proposedReward}."
     else if hasBounty() and proposedReward <= bounty.reward
-      msg.send "A bounty of #{bounty.reward} by #{issuer} has already been put out. #{statusEmoji.random('failure')}"
+      msg.send "A bounty of #{bounty.reward} by #{issuer} has already been issued. #{statusEmoji.random('failure')}"
       return
     else
       msg.send "@team #{issuer} has issued a bounty of #{proposedReward}."
@@ -167,7 +170,7 @@ module.exports = (robot) ->
     bounty = {}
 
   createBounty = (issuer, reward) ->
-    bounty = 
+    bounty =
       issuer: issuer,
       reward: reward,
 
@@ -263,7 +266,7 @@ module.exports = (robot) ->
           dibberLabel += " _(barista)_"
         else if hasBounty() and dibber == bounty.issuer
           dibberLabel += " _(#{bounty.reward} :coffee:#{if bounty.reward != 1 then 's' else ''} bounty issuer)_"
-          
+
 
         claims.push("#{dibberLabel} #{txIcon} " +
             "#{coffeeconomy.balanceFormatter account.balance}")
@@ -322,32 +325,46 @@ class Coffeeconomy
     "#{balance} :coffee:#{unless balance == 1 then 's' else ''}"
 
   accountDetailsFormatter: (account) ->
-    "_+#{account.totals.deposited}_ / _-#{account.totals.withdrawn}_, " +
+    if account.totals.rewards
+      rewardsSummary = "(_+#{account.totals.rewards.earned || 0}_ / " +
+        "_-#{account.totals.rewards.paid || 0}_ as/for rewards) "
+
+    "_+#{account.totals.deposited}_ / _-#{account.totals.withdrawn}_ " +
+      "#{rewardsSummary||''}" +
       "_Txs:_ #{account.transactions}, _Opened:_ #{@shortDateFormatter account.created}" +
       " #{if account.updated then ", _Updated:_ #{@longDateFormatter account.updated}" else ""}"
 
   topListEntryFormatter: (index, account) ->
     "_#{index}._ **#{@clientFormatter account.accountNumber}** #{@balanceFormatter account.balance}"
 
-  deposit: (client, amount) ->
-    @transaction client, amount
+  deposit: (client, amount, reward = false) ->
+    @transaction client, amount, reward
 
-  withdraw: (client, amount) ->
-    @transaction client, (-1 * amount)
+  withdraw: (client, amount, reward=false) ->
+    @transaction client, (-1 * amount), reward
 
-  transaction: (client, amount) ->
+  transaction: (client, amount, reward=false) ->
     account = @account client
     account.balance += amount
+
+    if reward and not account.totals.rewards
+      @initRewards account
+
     if amount > 0
       account.totals.deposited += amount
+      if reward
+        account.totals.rewards.earned += amount
     else
       account.totals.withdrawn -= amount
+      if reward
+        account.totals.rewards.paid -= amount
     account.transactions++
     @saveAccount account
 
     txType = if amount > 0 then 'deposited to' else 'withdrawn from'
 
-    @robot.logger.info "#{amount} :coffee:s #{txType} #{client.name} (#{client.id})"
+    @robot.logger.info "#{amount} :coffee:s #{txType} #{if reward then "reward " else ""}"+
+        "#{client.name} (#{client.id})"
 
   balance: (client) ->
     (@account client).balance
@@ -366,6 +383,11 @@ class Coffeeconomy
       deposited: 0
       withdrawn: 0
     created: new Date()
+
+  initRewards: (account) ->
+    account.totals.rewards =
+      earned: 0
+      paid: 0
 
   saveAccount: (account) ->
     account.updated = new Date()
