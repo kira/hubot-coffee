@@ -284,6 +284,7 @@ module.exports = (robot) ->
       , dibsDuration * 1000
 
     brewing = {}
+    clearBounty
     robot.brain.save()
 
   freeSpots = ->
