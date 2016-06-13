@@ -214,7 +214,7 @@ module.exports = (robot) ->
 
     if bounty.reward > 0 and barista is bounty.issuer
       msg.send "Hey @#{bounty.issuer} you can't collect your own bounty! **Your bounty has been cancelled.** #{statusEmoji.random('failure')}"
-      clearBounty
+      clearBounty()
 
     brewing =
       barista: barista
@@ -284,7 +284,7 @@ module.exports = (robot) ->
       , dibsDuration * 1000
 
     brewing = {}
-    clearBounty
+    clearBounty()
     robot.brain.save()
 
   freeSpots = ->
