@@ -236,8 +236,6 @@ module.exports = (robot) ->
           "To end the brew use: `#{robot.alias}fresh pot`"
 
   endBrew = (msg) ->
-    teamNotify = brewing.dibs.length < dibsLimit
-
     expiry = new Date (new Date()).getTime() + dibsDuration * 1000
 
     claims = []
@@ -274,7 +272,7 @@ module.exports = (robot) ->
         claims.push "_Unclaimed!_"
 
     threadMsg = threadedMsg(msg)
-    threadMsg.send "#{if teamNotify then '@team: ' else ''}Fresh Pot!!! #{msg.random freshPots} " +
+    threadMsg.send "Fresh Pot!!! #{msg.random freshPots} " +
         ":coffee: Claims (valid until #{dateformat expiry, 'h:MM:ss tt'}):\n" +
         ("#{(parseInt index) + 1}. #{claim}" for index, claim of claims).join("\n")
 
