@@ -62,6 +62,14 @@ freshPots = [
   "http://31.media.tumblr.com/3ae02ce94f54ed9e47a7f214f1e390c2/tumblr_n6mycaAO111somw7ho1_250.gif",
   "https://ak-hdl.buzzfed.com/static/2015-05/10/20/imagebuzz/webdr11/anigif_optimized-15275-1431304767-6.gif",
   "https://media.giphy.com/media/iHgMN3wishlde/giphy.gif",
+  "https://media.giphy.com/media/oZEBLugoTthxS/giphy.gif",
+  "https://media.giphy.com/media/3oKIPx16LFvftHPLiM/giphy.gif",
+  "https://media.giphy.com/media/26uffErnoIpeQ3PmU/giphy.gif",
+  "https://media.giphy.com/media/ceeFbVxiZzMBi/giphy.gif",
+  "https://media.giphy.com/media/xThuWjDsB8IbJggCME/giphy.gif",
+  "https://media.giphy.com/media/Rf3rGzWqKXsw8/giphy.gif",
+  "https://media.giphy.com/media/xT5LMT6SSx83oZz464/giphy.gif",
+  "https://media.giphy.com/media/3o85xrFlGdyGk2t9aU/giphy.gif",
 ]
 
 module.exports = (robot) ->
