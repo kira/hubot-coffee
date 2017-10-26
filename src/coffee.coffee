@@ -70,6 +70,8 @@ freshPots = [
   "https://media.giphy.com/media/Rf3rGzWqKXsw8/giphy.gif",
   "https://media.giphy.com/media/xT5LMT6SSx83oZz464/giphy.gif",
   "https://media.giphy.com/media/3o85xrFlGdyGk2t9aU/giphy.gif",
+  "https://media.giphy.com/media/3o6Ztfg45ZhI9oagxO/giphy.gif",
+  "https://media.giphy.com/media/l0MYFwjgTKh5X4jew/giphy.gif",
 ]
 
 module.exports = (robot) ->
