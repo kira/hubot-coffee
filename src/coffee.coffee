@@ -259,8 +259,8 @@ module.exports = (robot) ->
           coffeeconomy.deposit client, dibsLimit - 1
 
           if hasBounty()
-            coffeeconomy.withdraw bounty.issuer, bounty.reward
-            coffeeconomy.deposit client, bounty.reward
+            coffeeconomy.withdraw bounty.issuer, bounty.reward, true
+            coffeeconomy.deposit client, bounty.reward, true
         else
           coffeeconomy.withdraw client, 1
 
