@@ -88,7 +88,13 @@ module.exports = (robot) ->
 
   robot.respond /coffee balance(?:\s+@?([^ ]+)\s*)?$/i, (msg) ->
     clientName = msg.match[1] || msg.message.user.name
-    client = robot.brain.usersForRawFuzzyName(clientName)[0]
+    matchedClients = robot.brain.usersForFuzzyName(clientName)
+
+    if matchedClients.length > 1
+      msg.send "Did you mean: #{matchedClients.join ', '}?"
+      return
+
+    client = matchedClients[0]
 
     if not client
       msg.send "Sorry, I don't know anyone named #{clientName}! #{statusEmoji.random('failure')}"
