@@ -213,8 +213,8 @@ module.exports = (robot) ->
     return brewing.dibs?
 
   threadedMsg = (msg) ->
-# Ensure that the vote response sticks to the original thread if using the flowdock adapter
-    if robot.adatperName = 'flowdock'
+    # Ensure that the vote response sticks to the original thread if using the flowdock adapter
+    if robot.adapterName == 'flowdock'
       metadata = msg.envelope.metadata || {}
       metadata.room = brewing.messageMetadata.room if brewing.messageMetadata.room
       metadata.thread_id = brewing.messageMetadata.thread_id if brewing.messageMetadata.thread_id
